@@ -1,0 +1,27 @@
+# python仮想環境作成
+py -m venv ./env
+
+# 仮想環境に入る
+.\env\Scripts\activate
+
+
+---
+# djangoインストール
+python -m pip install Django
+
+
+---
+# djangoサービス起動
+cd djangoApp
+python manage.py runserver
+
+
+---
+# ※以下はgitからプルしない時の初回作成用コマンド
+
+# プロジェクトを作成する
+django-admin startproject djangoApp
+
+# アプリケーションをつくる
+cd djangoApp
+python manage.py startapp ffmpeg
