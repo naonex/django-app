@@ -39,6 +39,8 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     # ffmpeg
     'ffmpeg.apps.FfmpegConfig',
+    # three
+    'three.apps.ThreeConfig',
 ]
 
 MIDDLEWARE = [

@@ -21,4 +21,6 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     # ffmpeg
     path('ffmpeg/', include('ffmpeg.urls')),
+    # three
+    path('three/', include('three.urls')),
 ]
