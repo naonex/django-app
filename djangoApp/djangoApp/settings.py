@@ -130,3 +130,7 @@ STATICFILES_DIRS = [  # 20240425 add
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+# add 20261023 ... OpenStreetMapの描写に必要な設定（外部サイト連携に必要な設定）
+SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
