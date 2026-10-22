@@ -9,6 +9,8 @@ py -m venv ./env
 # djangoインストール
 python -m pip install Django
 
+# 使用するライブラリインストール
+pip install requests
 
 ---
 # djangoサービス起動
