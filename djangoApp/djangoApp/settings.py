@@ -138,5 +138,5 @@ SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
 
 # 20261025 add ... 認証機能用設定
 LOGIN_URL = "login"
-LOGIN_REDIRECT_URL = "home"
+LOGIN_REDIRECT_URL = "home:index"
 LOGOUT_REDIRECT_URL = "login"
