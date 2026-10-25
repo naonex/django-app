@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block title %}ログイン{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6 col-lg-4">
+        <div class="card shadow-sm border-0">
+            <div class="card-body p-4">
+                <h1 class="h4 mb-4 text-center">ログイン</h1>
+
+                {% if form.errors %}
+                    <div class="alert alert-danger">
+                        ユーザー名またはパスワードを確認してください。
+                    </div>
+                {% endif %}
+
+                <form method="post">
+                    {% csrf_token %}
+
+                    <div class="mb-3">
+                        <label class="form-label" for="{{ form.username.id_for_label }}">
+                            ユーザー名
+                        </label>
+                        <input
+                            class="form-control"
+                            type="text"
+                            name="username"
+                            id="{{ form.username.id_for_label }}"
+                            autocomplete="username"
+                            required
+                        >
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label" for="{{ form.password.id_for_label }}">
+                            パスワード
+                        </label>
+                        <input
+                            class="form-control"
+                            type="password"
+                            name="password"
+                            id="{{ form.password.id_for_label }}"
+                            autocomplete="current-password"
+                            required
+                        >
+                    </div>
+
+                    <input type="hidden" name="next" value="{{ next }}">
+
+                    <button class="btn btn-primary w-100" type="submit">
+                        ログイン
+                    </button>
+                </form>
+
+                <div class="text-center mt-3">
+                    <a href="{% url 'accounts:register' %}">
+                        アカウントを作成する
+                    </a>
+                </div>
+
+                <div class="text-center mt-2">
+                    <a href="{% url 'password_reset' %}">
+                        パスワードを忘れた場合
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

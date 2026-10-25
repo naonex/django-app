@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}新規登録{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6 col-lg-5">
+        <div class="card shadow-sm border-0">
+            <div class="card-body p-4">
+                <h1 class="h4 mb-4 text-center">アカウント作成</h1>
+
+                <form method="post">
+                    {% csrf_token %}
+
+                    {% for field in form %}
+                        <div class="mb-3">
+                            <label class="form-label"
+                                   for="{{ field.id_for_label }}">
+                                {{ field.label }}
+                            </label>
+
+                            {{ field.errors }}
+
+                            {{ field }}
+
+                            {% if field.help_text %}
+                                <div class="form-text">
+                                    {{ field.help_text|safe }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger">
+                            {{ form.non_field_errors }}
+                        </div>
+                    {% endif %}
+
+                    <button class="btn btn-primary w-100" type="submit">
+                        登録する
+                    </button>
+                </form>
+
+                <div class="text-center mt-3">
+                    <a href="{% url 'login' %}">
+                        すでにアカウントをお持ちの方
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -19,6 +19,9 @@ from django.urls import include, path
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    # 認証機能
+    path("accounts/", include("django.contrib.auth.urls")),
+    path("accounts/", include("accounts.urls")),
     # ffmpeg
     path('ffmpeg/', include('ffmpeg.urls')),
     # three

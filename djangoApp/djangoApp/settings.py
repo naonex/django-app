@@ -132,5 +132,10 @@ STATICFILES_DIRS = [  # 20240425 add
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
-# add 20261023 ... OpenStreetMapの描写に必要な設定（外部サイト連携に必要な設定）
+# 20261023 add ... OpenStreetMapの描写に必要な設定（外部サイト連携に必要な設定）
 SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
+
+# 20261025 add ... 認証機能用設定
+LOGIN_URL = "login"
+LOGIN_REDIRECT_URL = "home"
+LOGOUT_REDIRECT_URL = "login"
