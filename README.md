@@ -9,6 +9,12 @@
 #### django含む必要なライブラリインストール
 (venv) `pip install -r requirements.txt`
 
+#### DBマイグレーション
+(venv) `python manage.py migrate`
+
+#### 付録：管理者アカウント作成
+(venv) `python manage.py createsuperuser`
+
 ---
 ## djangoサービス起動 ※vscodeの実行とデバッグから開始・終了も可
 (venv) `python djangoApp\manage.py runserver`
