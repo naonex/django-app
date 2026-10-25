@@ -22,6 +22,8 @@ urlpatterns = [
     # 認証機能
     path("accounts/", include("django.contrib.auth.urls")),
     path("accounts/", include("accounts.urls")),
+    # ホーム画面
+    path("", include("home.urls")),
     # ffmpeg
     path('ffmpeg/', include('ffmpeg.urls')),
     # three
