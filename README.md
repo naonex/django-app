@@ -17,9 +17,12 @@
 
 ---
 ## djangoサービス起動 ※vscodeの実行とデバッグから開始・終了も可
-(venv) `python djangoApp\manage.py runserver`
+(venv) `python djangoApp\manage.py runserver` ...（ctrl + c で終了）
+#### ポート指定したい時の例：
+(venv) `python djangoApp\manage.py runserver 8080` ...（ちなみにデフォだと8000で起動）
 
-（ctrl + c で終了）
+`localhost:8000(デフォの場合)` にアクセスし、ログインページに行けたらOK。  
+ログインして確認してね！アカウントはローカルDB管理なので適当に作成してもらってOKです！
 
 ---
 # ※初回構築時のコマンド例
