@@ -1,11 +1,8 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>ホーム・サイトマップ</title>
-</head>
-<body>
+{% extends "base.html" %}
+
+{% block title %}ホーム・サイトマップ{% endblock %}
+
+{% block content %}
     <h1>ホーム・サイトマップ</h1>
 
     <h2>アプリケーション</h2>
@@ -15,5 +12,4 @@
         <li><a href="{% url 'three:threeOpenstreetmap' %}">threeマップ画面</a></li>
         <li><a href="{% url 'ffmpeg:transcode' %}">動画圧縮画面</a></li>
     </ul>
-</body>
-</html>
+{% endblock %}
