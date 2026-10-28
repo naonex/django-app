@@ -1,7 +1,9 @@
+{% extends "base.html" %}
 {% load static %}
-<!DOCTYPE html>
-<html>
-<head>
+
+{% block title %}threeサンプル画面{% endblock %}
+
+{% block additionalHead %}
   <meta charset="UTF-8" />
   <!-- three.jsを読み込む -->
   <!--<script src="three.js"></script>-->
@@ -10,8 +12,8 @@
   <!-- index.jsを読み込む -->
   <!--<script src="index.js"></script>-->
   <script src="{% static 'three/index.js' %}"></script>
-</head>
-<body>
+{% endblock %}
+
+{% block content %}
   <canvas id="myCanvas"></canvas>
-</body>
-</html>
+{% endblock %}
