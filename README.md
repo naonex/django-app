@@ -33,6 +33,9 @@
 #### 使用するライブラリインストール
 (venv) `pip install requests`
 
+##### 使用ライブラリをrequirements.txtに追加
+(venv) `python -m pip freeze > requirements.txt`
+
 #### プロジェクトを作成する
 (venv) `django-admin startproject djangoApp`
 
