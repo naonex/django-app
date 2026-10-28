@@ -37,9 +37,11 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    # ffmpeg
+
+    # 自作アプリ
+    'home.apps.HomeConfig',
+    'accounts.apps.AccountsConfig',
     'ffmpeg.apps.FfmpegConfig',
-    # three
     'three.apps.ThreeConfig',
 ]
 
