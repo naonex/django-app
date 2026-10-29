@@ -8,8 +8,14 @@
     <h2>アプリケーション</h2>
     <ul>
         <li><a href="{% url 'admin:index' %}">Django 管理画面</a></li>
-        <li><a href="{% url 'three:index' %}">threeサンプル画面</a></li>
-        <li><a href="{% url 'three:threeOpenstreetmap' %}">threeマップ画面</a></li>
-        <li><a href="{% url 'ffmpeg:transcode' %}">動画圧縮画面</a></li>
+        {% if PAGE_TITLES.three.index %}
+            <li><a href="{% url 'three:index' %}">{{ PAGE_TITLES.three.index }}</a></li>
+        {% endif %}
+        {% if PAGE_TITLES.three.threeOpenstreetmap %}
+            <li><a href="{% url 'three:threeOpenstreetmap' %}">{{ PAGE_TITLES.three.threeOpenstreetmap }}</a></li>
+        {% endif %}
+        {% if PAGE_TITLES.ffmpeg.transcode %}
+            <li><a href="{% url 'ffmpeg:transcode' %}">{{ PAGE_TITLES.ffmpeg.transcode }}</a></li>
+        {% endif %}
     </ul>
 {% endblock %}
