@@ -1,112 +1,212 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}{{ PAGE_TITLES.ffmpeg.transcode }}{% endblock %}
+{% block title %}{{ PAGE_TITLES.ffmpegTranscode }}{% endblock %}
+{% block page_title %}{{ PAGE_TITLES.ffmpegTranscode }}{% endblock %}
 
 {% block additionalHead %}
-  <!--<script src="/dist/ffmpeg.dev.js"></script>-->
-  <!--
-    ※headerの影響でCDN使用不可
-    <script src="//cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.10.1/dist/ffmpeg.min.js"></script>
-  -->
-  <script src="{% static 'ffmpeg/0.11.6/ffmpeg.min.js' %}"></script>
-  <style>
-    #video-compressor {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 1rem;
-    }
-
-    #video-compressor #compressedFiles {
-      margin-top: 1em;
-      max-width: 100%;
-    }
-
-    #video-compressor .compressedFile {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      column-gap: 1em;
-      align-items: center;
-    }
-
-    #video-compressor .compressedFile p {
-      margin: 0;
-      overflow-wrap: anywhere;
-    }
-  </style>
+  <!-- FFmpeg -->
+  <script src="{% static 'assets/ffmpeg/0.11.6/ffmpeg.min.js' %}"></script>
 {% endblock %}
 
 {% block content %}
-  <div id="video-compressor">
-    <h3>Upload a video to transcode to mp4 (x264) and play!</h3>
-    <!--<video id="output-video" controls></video><br/>--><!-- 画面上で動画再生できなくて良いので無効化 -->
-    <input type="file" id="uploader" multiple><!-- 複数ファイル選択可能とする -->
-    <button onClick="cancel()">Cancel</button>
-    <div id="compressedFiles"></div>
-    <p id="progress"></p>
+  <div id="video-compressor" class="p-4 lg:p-6">
+
+    <div class="max-w-[1440px] mx-auto">
+
+      <!-- メインレイアウト -->
+      <div class="grid grid-cols-1 lg:grid-cols-[240px_minmax(0,1fr)] gap-4">
+
+        <!-- 左：設定・操作メニュー -->
+        <aside class="bg-white border border-gray-200 rounded-lg p-4 h-fit">
+
+          <h3 class="font-semibold text-gray-800 text-lg mb-4">
+            圧縮設定
+          </h3>
+
+          <!-- CRF設定 -->
+          <div class="quality-setting mb-6">
+            <label for="crf" class="block text-sm font-medium text-gray-700 mb-2">
+              圧縮品質（CRF）
+            </label>
+
+            <input
+              type="range"
+              id="crf"
+              min="18"
+              max="35"
+              value="23"
+              step="1"
+              list="crfMarks"
+              class="w-full">
+
+            <datalist id="crfMarks">
+              <option value="18"></option>
+              <option value="23" label="Default"></option>
+              <option value="28"></option>
+              <option value="35"></option>
+            </datalist>
+
+            <div class="text-center mt-2 text-sm text-gray-700">
+              CRF: <strong id="crfValue">23</strong>
+            </div>
+
+            <p class="mt-2 text-xs text-gray-500 leading-relaxed">
+              数値が小さいほど高画質、大きいほど高圧縮になります。
+              初期値は23です。
+            </p>
+          </div>
+
+          <!-- エンコード速度設定 -->
+          <div class="preset-setting mb-6">
+            <label for="preset" class="block text-sm font-medium text-gray-700 mb-2">
+              エンコード速度
+            </label>
+
+            <select
+              id="preset"
+              class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm">
+              <option value="ultrafast">ultrafast</option>
+              <option value="superfast">superfast</option>
+              <option value="veryfast">veryfast</option>
+              <option value="faster">faster</option>
+              <option value="fast">fast</option>
+              <option value="medium" selected>medium (Default)</option>
+              <option value="slow">slow</option>
+              <option value="slower">slower</option>
+              <option value="veryslow">veryslow</option>
+            </select>
+
+            <p class="mt-2 text-xs text-gray-500 leading-relaxed">
+              遅いほど圧縮効率が高くなります。
+            </p>
+          </div>
+
+          <hr class="border-gray-200 my-4">
+
+          <!-- 操作ボタン -->
+          <div class="flex flex-col gap-3">
+
+            <button
+              type="button"
+              id="startCompression"
+              disabled
+              class="w-full rounded-md px-4 py-2.5 bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed">
+              圧縮開始
+            </button>
+
+            <button
+              type="button"
+              id="cancelCompression"
+              class="w-full rounded-md px-4 py-2.5 border border-gray-300 text-gray-700 text-sm hover:bg-gray-100">
+              キャンセル
+            </button>
+
+            <button
+              type="button"
+              id="mergeVideos"
+              disabled
+              class="w-full rounded-md px-4 py-2.5 bg-green-600 text-white text-sm font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed">
+              動画を結合
+            </button>
+
+          </div>
+
+          <!-- 処理状況 -->
+          <div class="mt-6 pt-4 border-t">
+            <div class="flex justify-between items-center text-sm mb-2">
+              <span id="progress">待機中</span>
+              <span id="progressPercent" class="font-semibold">0%</span>
+            </div>
+
+            <div class="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+              <div
+                id="progressBar"
+                class="bg-blue-600 h-2 rounded-full transition-all duration-200"
+                style="width: 0%"></div>
+            </div>
+          </div>
+
+        </aside>
+
+        <!-- 右：動画一覧 -->
+        <section class="bg-white border border-gray-200 rounded-lg p-4 min-w-0">
+
+          <h3 class="font-semibold text-gray-800 text-lg mb-4">
+            動画一覧
+          </h3>
+
+          <!-- ファイル選択・ドラッグ＆ドロップ -->
+          <div
+            id="dropArea"
+            class="border-2 border-dashed border-gray-300 rounded-lg p-6
+              text-center cursor-pointer
+              transition-all duration-200
+              hover:border-blue-400 hover:bg-blue-50 hover:shadow-md">
+
+            <input
+              type="file"
+              id="uploader"
+              accept="video/*"
+              multiple
+              class="hidden">
+
+            <div class="pointer-events-none">
+              <div class="text-gray-500 text-sm">
+                動画をドラッグ＆ドロップ
+              </div>
+              <div class="text-gray-400 text-xs mt-1">
+                またはクリックしてファイルを選択
+              </div>
+            </div>
+          </div>
+
+          <!-- 動画一覧の見出し -->
+          <div class="grid grid-cols-[40px_minmax(0,1fr)_minmax(0,1fr)_64px_40px]
+                      items-center gap-2 border-b bg-gray-50 px-2 py-2 mt-2
+                      text-xs font-semibold text-gray-600">
+
+            <div class="text-center">対象</div>
+            <div class="border-l pl-2">IN（入力動画）</div>
+            <div class="border-l pl-2">OUT（出力動画）</div>
+            <div></div><!-- 入れ替えアイコン -->
+            <div class="border-l pl-2 text-center">削除</div>
+          </div>
+          <!-- 動画一覧 -->
+          <div id="selectedFiles"></div>
+
+          <div id="separator" class="border-t-2 border-gray-400 mt-4 pt-4" hidden></div>
+          <!-- 結合結果 -->
+          <div id="mergedVideoResult"></div>
+
+        </section>
+
+      </div>
+
+    </div>
+
   </div>
 
-  <script>
-    const { createFFmpeg, fetchFile } = FFmpeg;
-    let ffmpeg = null;
+  <!-- 動画プレビューモーダル -->
+  <div id="videoModal"
+    class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/70">
+    <div class="relative bg-white p-4 rounded-lg max-w-3xl w-full mx-4">
 
-    const transcode = async ({ target: { files } }) => {
-      const compressedFiles = document.getElementById('compressedFiles');
-      const progress = document.getElementById('progress');
-      if (ffmpeg === null) {
-        ffmpeg = createFFmpeg({ 
-          log: true, 
-          progress: ({ ratio }) => {
-            progress.innerHTML = `Complete: ${(ratio * 100.0).toFixed(2)}%`;
-          }
-        });
-      }
-      progress.innerHTML = 'Loading ffmpeg-core.js';
-      if (!ffmpeg.isLoaded()) {
-        await ffmpeg.load();
-      }
-      for (let i = 0; i < files.length; i++) {
-        // 圧縮ファイルのDOM作成
-        let compressedFile = document.createElement("div");
-        compressedFile.classList.add("compressedFile")
-        compressedFiles.append(compressedFile);
-        // メッセージフィールド作成
-        let message = document.createElement("p");
-        compressedFile.append(message);
-        // ファイル名設定
-        let { name } = files[i];
-        let outputName = name.split('.').slice(0, -1).join('.') + '.ffmpeg.mp4'
-        
-        message.innerHTML = name + ' Start transcoding';
-        // ffmpeg実行
-        ffmpeg.FS('writeFile', name, await fetchFile(files[i]));
-        await ffmpeg.run('-i', name, outputName);  // runでffmpegコマンドを実行する。公式サイトなどでオプション確認して使用できるはず
-        let data = ffmpeg.FS('readFile', outputName);
-        
-        // 画面上で動画再生できなくて良いので無効化
-        //const video = document.getElementById('output-video');
-        //video.src = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
-        
-        // ダウンロードURL作成
-        let downloadUrl = document.createElement("a");
-        downloadUrl.href = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
-        downloadUrl.download = outputName;  // ダウンロードデフォファイル名
-        downloadUrl.textContent = outputName;
-        compressedFile.append(downloadUrl);
+      <button
+        id="closeVideoModal"
+        class="absolute top-2 right-3 text-2xl">
+        &times;
+      </button>
 
-        message.innerHTML = name + ' Complete transcoding';
-      }
-      progress.innerHTML = 'All completed';
-    }
-    const elm = document.getElementById('uploader');
-    elm.addEventListener('change', transcode);
+      <video
+        id="previewVideo"
+        class="w-full mt-6"
+        controls>
+      </video>
 
-    const cancel = () => {
-      try {
-        ffmpeg.exit();
-      } catch(e) {}
-      ffmpeg = null;
-    }
-  </script>
+    </div>
+
+  </div>
+
+  <script type="module" src="{% static 'ffmpeg/index.js' %}"></script>
 {% endblock %}

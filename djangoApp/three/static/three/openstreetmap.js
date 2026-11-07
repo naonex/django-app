@@ -1,334 +1,397 @@
-import * as THREE from 'three';
+import {
+    createTerrain, initTerrain, startTerrainRouteAnimation, stopTerrainRouteAnimation,
+    TERRAIN_SIZE, DEM_ZOOM
+} from './terrain.js';
 
-import Stats from 'three/addons/libs/stats.module.js';
+// ----------------------------------------
+// 定数
+// ----------------------------------------
+// 福岡市を初期表示位置に設定
+const defaultPosition = [33.5902, 130.4017];
+// クリック地点用のマーカーアイコン
+const selectedLocationIcon = L.divIcon({
+    className: '',
+    html: `
+        <div style="
+            background-color: #ef4444;
+            width: 20px;
+            height: 20px;
+            border: 3px solid white;
+            border-radius: 50% 50% 50% 0;
+            transform: rotate(-45deg);
+            box-shadow: 0 1px 4px rgba(0,0,0,0.5);
+        "></div>
+    `,
+    iconSize: [26, 26],
+    iconAnchor: [13, 26],
+    popupAnchor: [0, -26]
+});
 
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { ImprovedNoise } from 'three/addons/math/ImprovedNoise.js';
+// ----------------------------------------
+// 変数
+// ----------------------------------------
+// ルート管理用
+let startPoint = null;
+let goalPoint = null;
+let currentLocationMarker = null;
+let selectedLocationMarker = null;  // クリック地点のマーカー
+let routeLine = null;
+let terrainAnimationMapMarker = null;  // アニメーション用マーカー
+// 地形表示範囲の矩形
+let terrainArea = null;
 
-// map生成
-var map = L.map('map').setView([51.505, -0.09], 13);
-// タイルセット
+// ----------------------------------------
+// 初期処理
+// ----------------------------------------
+// 地図の初期化
+const leafletMap = L.map('map').setView(defaultPosition, 13);
+// 標高マップの初期化
+initTerrain();
+
+// 地図のタイルセット
 L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
     attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-}).addTo(map);
+}).addTo(leafletMap);
 
-// マーカー、円、多角形をセット
-var marker = L.marker([51.5, -0.09]).addTo(map);
-var circle = L.circle([51.508, -0.11], {
-    color: 'red',
-    fillColor: '#f03',
-    fillOpacity: 0.5,
-    radius: 500
-}).addTo(map);
-var polygon = L.polygon([
-    [51.509, -0.08],
-    [51.503, -0.06],
-    [51.51, -0.047]
-]).addTo(map);
-// ポップアップをセット
-marker.bindPopup("<b>Hello world!</b><br>I am a popup.").openPopup();
-circle.bindPopup("I am a circle.");
-polygon.bindPopup("I am a polygon.");
-var popup = L.popup()
-    .setLatLng([51.513, -0.09])
-    .setContent("I am a standalone popup.")
-    .openOn(map);
-// イベントセット
-var clickPopup = L.popup();
-let camera, controls, scene, renderer;
-function onMapClick(e) {
-    //alert("You clicked the map at " + e.latlng);
+// 現在地を取得（画面アクセス時に動作。位置情報権限の許可が必要）
+navigator.geolocation.getCurrentPosition(
+    (position) => {
+        const latitude = position.coords.latitude;
+        const longitude = position.coords.longitude;
+        // 現在地をルート開始地点として保持
+        startPoint = {
+            latitude: latitude,
+            longitude: longitude
+        };
 
-    clickPopup
-        .setLatLng(e.latlng)
-        .setContent("You clicked the map at " + e.latlng.toString())
-        .openOn(map);
+        // 現在地を中心に表示
+        leafletMap.setView([latitude, longitude], 15);
+        // 現在地にマーカーを配置
+        currentLocationMarker = L.marker([latitude, longitude])
+            .addTo(leafletMap)
+            .bindPopup('現在地')
+            .openPopup();
+        // マーカーのクリックイベント
+        currentLocationMarker.on('click', () => {
+            callCreateTerrain(latitude, longitude);
+        });
 
-    //Mapから地図imgを取得 NOTE: CORS対策のため、laravelの内部APIで画像を取得して返す形とする
-    //let mapImgs = document.querySelectorAll("#map img")
-    let mapImg = document.querySelector("#map img")
-    const apiUrl = `${window.location.origin}/three/api/image`;
-    let imageUrl = apiUrl + '?url=' + mapImg.src.replace('https://', '')
+        updateRoute();  // 地図上のルート更新
+        callCreateTerrain(latitude, longitude);
+    },
+    (error) => {
+        console.error('現在地を取得できませんでした。', error);
+    }
+);
 
-    const width = 500;
-    const height = 500;
+// ----------------------------------------
+// イベント処理
+// ----------------------------------------
+// 地図のクリックイベント
+function handleMapClick(e) {
+    // Leafletから緯度・経度を取得
+    const latitude = e.latlng.lat;
+    const longitude = e.latlng.lng;
+    // 選択地点を保持
+    goalPoint = {
+        latitude: latitude,
+        longitude: longitude
+    };
 
-    // Renderer設定
-    let canvas = document.getElementById('myCanvas');
-    renderer = new THREE.WebGLRenderer( { 'canvas' : canvas } );
-    renderer.setSize(width, height);
-    renderer.setPixelRatio(window.devicePixelRatio);
+    // 既存のクリック地点マーカーを削除
+    if (selectedLocationMarker) {
+        leafletMap.removeLayer(selectedLocationMarker);
+    }
+    // クリック地点にマーカーを配置
+    selectedLocationMarker = L.marker([latitude, longitude], { icon: selectedLocationIcon })
+        .addTo(leafletMap)
+        .bindPopup('選択地点')
+        .openPopup();
+    // マーカーのクリックイベント
+    selectedLocationMarker.on('click', () => {
+        callCreateTerrain(latitude, longitude);
+    });
 
-    // Cameraを用意
-    camera = new THREE.PerspectiveCamera();
-    camera.position.z = 500;
-  
-    // カメラコントローラ作成
-    controls = new OrbitControls(camera, canvas);
-
-    // 画像を読み込む
-    new THREE.TextureLoader().load(
-      imageUrl,
-      function ( texture ) {
-        // 画像を指定したmaterialの用意
-        //var material = new THREE.MeshBasicMaterial( {
-        //  map:THREE.ImageUtils.loadTexture(imageUrl, {}, function() {renderer.render(scene, camera);})
-        //} );
-        var material = new THREE.MeshBasicMaterial( { map:texture } );
-
-        // Cubeの用意
-        var geometry = new THREE.PlaneGeometry(250, 250);
-        var mesh = new THREE.Mesh( geometry, material );
-
-        // Sceneを用意
-        scene = new THREE.Scene();
-        scene.add( mesh );
-
-        // 初回実行
-        tick();
-      }
-    );
+    updateRoute();  // 地図上のルート更新
+    callCreateTerrain(latitude, longitude);
 }
-map.on('click', onMapClick);
+setMapClickEnabled(leafletMap, true);
 
-function tick() {
-  requestAnimationFrame(tick);
+// ルート再生ボタン
+document.getElementById('terrainAnimationPlay')
+    .addEventListener('click', () => {
+        startTerrainRouteAnimation(
+            startPoint,
+            goalPoint,
+            {
+                /* アニメーション開始時の地図処理 */
+                onStart: () => {
+                    // ボタン状態を変更
+                    document.getElementById('terrainAnimationPlay').disabled = true;
+                    document.getElementById('terrainAnimationStop').disabled = false;
 
-  //// 箱を回転させる
-  //box.rotation.x += 0.01;
-  //box.rotation.y += 0.01;
+                    // 地図クリックを無効化
+                    setMapClickEnabled(leafletMap, false);
 
-  // レンダリング
-  renderer.render(scene, camera);
-}
+                    // 現在地点マーカーを非表示
+                    if (currentLocationMarker) {
+                        currentLocationMarker.setOpacity(0);
+                    }
+                    // 出発地点にマーカーを表示
+                    updateTerrainAnimationMapMarker(startPoint);
+                },
 
-/*
-let container, stats;
+                /* アニメーション中の地図更新 */
+                // 地図マーカー更新
+                onUpdateMarker: updateTerrainAnimationMapMarker,
+                // 矩形更新（アニメーション中）
+                onAreaUpdate: (centerPixel, metersPerPixel) => {
+                    updateTerrainArea(
+                        leafletMap,
+                        centerPixel,
+                        metersPerPixel
+                    );
+                },
 
-let camera, controls, scene, renderer;
+                /* アニメーション停止時の地図処理 */
+                onStop: () => {
+                    // 地図クリックを有効化
+                    setMapClickEnabled(leafletMap, true);
 
-let mesh, texture;
+                    // NOTE: このタイミングではアニメーション用マーカーのままにする（標高マップと同期させるため）
 
-const worldWidth = 256, worldDepth = 256,
-  worldHalfWidth = worldWidth / 2, worldHalfDepth = worldDepth / 2;
+                    // ボタン状態を変更
+                    document.getElementById('terrainAnimationPlay').disabled = false;
+                    document.getElementById('terrainAnimationStop').disabled = true;
+                },
 
-let helper;
+                /* アニメーション中の座標計算関数 */
+                convertToPixel: (position) => convertToPixel(
+                    position.latitude,
+                    position.longitude
+                ),
+                getRoutePosition: (rate) => getRoutePosition(rate)
+            }
+        );
+    });
 
-const raycaster = new THREE.Raycaster();
-const pointer = new THREE.Vector2();
+// 停止ボタン
+document.getElementById('terrainAnimationStop')
+    .addEventListener('click', () => {
+        stopTerrainRouteAnimation();
+    });
 
-init();
-animate();
+// 移動方式のリストボックス
+document.getElementById('terrainAnimationMode')
+    .addEventListener('change', (event) => {
+        const isSpeedMode = event.target.value === 'speed';
 
-function init() {
-  //表示領域サイズ
-  const divWidth = 500;
-  const divHeight = 500;
+        document.getElementById('terrainAnimationSpeedArea')
+            .classList.toggle('hidden', !isSpeedMode);
 
-  container = document.getElementById( 'container' );
-  container.innerHTML = '';
+        document.getElementById('terrainAnimationDurationArea')
+            .classList.toggle('hidden', isSpeedMode);
+    });
 
-  renderer = new THREE.WebGLRenderer( { antialias: true } );
-  renderer.setPixelRatio( window.devicePixelRatio );
-  renderer.setSize( divWidth, divHeight );
-  renderer.useLegacyLights = false;
-  container.appendChild( renderer.domElement );
+// 地図クリックイベントの有効・無効を切り替え
+function setMapClickEnabled(leafletMap, enabled) {
+    if (!leafletMap) return;
 
-  scene = new THREE.Scene();
-  scene.background = new THREE.Color( 0xbfd1e5 );
-
-  camera = new THREE.PerspectiveCamera( 60, divWidth / divHeight, 10, 20000 );
-
-  controls = new OrbitControls( camera, renderer.domElement );
-  controls.minDistance = 1000;
-  controls.maxDistance = 10000;
-  controls.maxPolarAngle = Math.PI / 2;
-
-  //
-
-  const data = generateHeight( worldWidth, worldDepth );
-
-  controls.target.y = data[ worldHalfWidth + worldHalfDepth * worldWidth ] + 500;
-  camera.position.y = controls.target.y + 5000;
-  camera.position.x = 2000;
-  camera.position.x = 1000;
-  controls.update();
-
-  const geometry = new THREE.PlaneGeometry( 7500, 7500, worldWidth - 1, worldDepth - 1 );
-  geometry.rotateX( - Math.PI / 2 );
-
-  const vertices = geometry.attributes.position.array;
-
-  for ( let i = 0, j = 0, l = vertices.length; i < l; i ++, j += 3 ) {
-
-    vertices[ j + 1 ] = data[ i ] * 10;
-
-  }
-
-  //
-
-  texture = new THREE.CanvasTexture( generateTexture( data, worldWidth, worldDepth ) );
-  texture.wrapS = THREE.ClampToEdgeWrapping;
-  texture.wrapT = THREE.ClampToEdgeWrapping;
-  texture.colorSpace = THREE.SRGBColorSpace;
-
-  mesh = new THREE.Mesh( geometry, new THREE.MeshBasicMaterial( { map: texture } ) );
-  scene.add( mesh );
-
-  const geometryHelper = new THREE.ConeGeometry( 20, 100, 3 );
-  geometryHelper.translate( 0, 50, 0 );
-  geometryHelper.rotateX( Math.PI / 2 );
-  helper = new THREE.Mesh( geometryHelper, new THREE.MeshNormalMaterial() );
-  scene.add( helper );
-
-  container.addEventListener( 'pointermove', onPointerMove );
-
-  stats = new Stats();
-  container.appendChild( stats.dom );
-
-  //
-
-  window.addEventListener( 'resize', onWindowResize );
-
+    // 既存のイベントを解除
+    leafletMap.off('click', handleMapClick);
+    // 有効の場合は再登録
+    if (enabled) {
+        leafletMap.on('click', handleMapClick);
+    }
 }
 
-function onWindowResize() {
-
-  camera.aspect = divWidth / divHeight;
-  camera.updateProjectionMatrix();
-
-  renderer.setSize( divWidth, divHeight );
-
-}
-
-function generateHeight( width, height ) {
-
-  const size = width * height, data = new Uint8Array( size ),
-    perlin = new ImprovedNoise(), z = Math.random() * 100;
-
-  let quality = 1;
-
-  for ( let j = 0; j < 4; j ++ ) {
-
-    for ( let i = 0; i < size; i ++ ) {
-
-      const x = i % width, y = ~ ~ ( i / width );
-      data[ i ] += Math.abs( perlin.noise( x / quality, y / quality, z ) * quality * 1.75 );
-
+// ----------------------------------------
+// 地図描写処理
+// ----------------------------------------
+/* 現在地と選択地点間のルートライン */
+function updateRoute() {
+    // 2地点が揃っていない場合、描写しない
+    if (!startPoint || !goalPoint) {
+        return;
     }
 
-    quality *= 5;
+    // 既存のルートを削除
+    if (routeLine) {
+        leafletMap.removeLayer(routeLine);
+    }
+    // 2地点を直線で結ぶ
+    routeLine = L.polyline(
+        [
+            [startPoint.latitude, startPoint.longitude],
+            [goalPoint.latitude, goalPoint.longitude]
+        ],
+        {
+            color: '#ff0000',
+            weight: 4,
+            opacity: 0.8
+        }
+    ).addTo(leafletMap);
 
-  }
-
-  return data;
-
+    // 再生ボタンを活性（現在地と選択地点が判明した時に再生有効化）
+    document.getElementById('terrainAnimationPlay').disabled = false;
 }
 
-function generateTexture( data, width, height ) {
+/* 地図上の"現在地点マーカー"を更新 */
+function updateTerrainAnimationMapMarker(position) {
+    const latLng = L.latLng(
+        position.latitude,
+        position.longitude
+    );
 
-  // bake lighting into texture
+    if (!terrainAnimationMapMarker) {
+        // マーカーを生成
+        terrainAnimationMapMarker = L.marker(latLng, {
+            title: '現在地点'
+        });
+        terrainAnimationMapMarker.addTo(leafletMap);
 
-  let context, image, imageData, shade;
-
-  const vector3 = new THREE.Vector3( 0, 0, 0 );
-
-  const sun = new THREE.Vector3( 1, 1, 1 );
-  sun.normalize();
-
-  const canvas = document.createElement( 'canvas' );
-  canvas.width = width;
-  canvas.height = height;
-
-  context = canvas.getContext( '2d' );
-  context.fillStyle = '#000';
-  context.fillRect( 0, 0, width, height );
-
-  image = context.getImageData( 0, 0, canvas.width, canvas.height );
-  imageData = image.data;
-
-  for ( let i = 0, j = 0, l = imageData.length; i < l; i += 4, j ++ ) {
-
-    vector3.x = data[ j - 2 ] - data[ j + 2 ];
-    vector3.y = 2;
-    vector3.z = data[ j - width * 2 ] - data[ j + width * 2 ];
-    vector3.normalize();
-
-    shade = vector3.dot( sun );
-
-    imageData[ i ] = ( 96 + shade * 128 ) * ( 0.5 + data[ j ] * 0.007 );
-    imageData[ i + 1 ] = ( 32 + shade * 96 ) * ( 0.5 + data[ j ] * 0.007 );
-    imageData[ i + 2 ] = ( shade * 96 ) * ( 0.5 + data[ j ] * 0.007 );
-
-  }
-
-  context.putImageData( image, 0, 0 );
-
-  // Scaled 4x
-
-  const canvasScaled = document.createElement( 'canvas' );
-  canvasScaled.width = width * 4;
-  canvasScaled.height = height * 4;
-
-  context = canvasScaled.getContext( '2d' );
-  context.scale( 4, 4 );
-  context.drawImage( canvas, 0, 0 );
-
-  image = context.getImageData( 0, 0, canvasScaled.width, canvasScaled.height );
-  imageData = image.data;
-
-  for ( let i = 0, l = imageData.length; i < l; i += 4 ) {
-
-    const v = ~ ~ ( Math.random() * 5 );
-
-    imageData[ i ] += v;
-    imageData[ i + 1 ] += v;
-    imageData[ i + 2 ] += v;
-
-  }
-
-  context.putImageData( image, 0, 0 );
-
-  return canvasScaled;
-
+    } else {
+        // 既存マーカーの位置を更新
+        terrainAnimationMapMarker.setLatLng(latLng);
+    }
 }
 
-//
+/* "地形表示範囲"を地図上に表示 */
+function updateTerrainArea(
+    leafletMap,
+    centerPixel,
+    metersPerPixel
+) {
+    // 地形の半分のサイズ（メートル）
+    const halfSize = TERRAIN_SIZE / 2;
 
-function animate() {
+    // 中心地点から南北・東西に広げた範囲
+    const southWest = leafletMap.unproject(
+        L.point(
+            centerPixel.x - halfSize / metersPerPixel,
+            centerPixel.y + halfSize / metersPerPixel
+        ),
+        DEM_ZOOM
+    );
 
-  requestAnimationFrame( animate );
+    const northEast = leafletMap.unproject(
+        L.point(
+            centerPixel.x + halfSize / metersPerPixel,
+            centerPixel.y - halfSize / metersPerPixel
+        ),
+        DEM_ZOOM
+    );
 
-  render();
-  stats.update();
+    // 表示範囲
+    const bounds = L.latLngBounds(southWest, northEast);
 
+    // 以前の矩形を削除
+    if (terrainArea) {
+        leafletMap.removeLayer(terrainArea);
+    }
+
+    // 矩形を追加
+    terrainArea = L.rectangle(bounds, {
+        color: '#ff7800',
+        weight: 2,
+        fill: false
+    }).addTo(leafletMap);
 }
 
-function render() {
+// ----------------------------------------
+// 標高マップ作成処理
+// ----------------------------------------
+// 地形を生成して3Dルートを更新
+function callCreateTerrain(latitude, longitude) {
+    /* アニメーション時のマーカーをリセット */
+    // アニメーション用マーカーを削除
+    if (terrainAnimationMapMarker) {
+        leafletMap.removeLayer(terrainAnimationMapMarker);
+        terrainAnimationMapMarker = null;
+    }
+    // 現在地点マーカーを再表示
+    if (currentLocationMarker) {
+        currentLocationMarker.setOpacity(1);
+    }
 
-  renderer.render( scene, camera );
+    // 標高マップ中心のピクセル座標
+    const centerPixel = convertToPixel(
+        latitude,
+        longitude
+    );
+    // 現在地・選択地点のピクセル座標（未設定の場合はnull）
+    const startPixel = startPoint
+        ? convertToPixel(startPoint.latitude, startPoint.longitude)
+        : null;
+    const goalPixel = goalPoint
+        ? convertToPixel(goalPoint.latitude, goalPoint.longitude)
+        : null;
 
+    // 地形を生成
+    createTerrain(
+        latitude,
+        longitude,
+        centerPixel,
+        startPixel,
+        goalPixel,
+        {
+            // 矩形更新（地形生成時）
+            onAreaUpdate: (centerPixel, metersPerPixel) => {
+                updateTerrainArea(
+                    leafletMap,
+                    centerPixel,
+                    metersPerPixel
+                );
+            }
+        }
+    );
 }
 
-function onPointerMove( event ) {
+// ----------------------------------------
+// サブ関数
+// ----------------------------------------
+// 緯度・経度をピクセル座標に変換
+function convertToPixel(latitude, longitude) {
+    const point = leafletMap.project(
+        L.latLng(latitude, longitude),
+        DEM_ZOOM
+    );
 
-  pointer.x = ( event.clientX / renderer.domElement.clientWidth ) * 2 - 1;
-  pointer.y = - ( event.clientY / renderer.domElement.clientHeight ) * 2 + 1;
-  raycaster.setFromCamera( pointer, camera );
-
-  // See if the ray from the camera into the world hits one of our meshes
-  const intersects = raycaster.intersectObject( mesh );
-
-  // Toggle rotation bool for meshes that we clicked
-  if ( intersects.length > 0 ) {
-
-    helper.position.set( 0, 0, 0 );
-    helper.lookAt( intersects[ 0 ].face.normal );
-
-    helper.position.copy( intersects[ 0 ].point );
-
-  }
-
+    return {
+        x: point.x,
+        y: point.y
+    };
 }
-*/
+
+// ルート上の座標を計算 ... 地図側で計算し地形と同期させる
+function getRoutePosition(rate) {
+    // NOTE: ※現在地・選択地点が設定されている前提
+
+    // 緯度・経度をピクセル座標に変換
+    const startPixel = leafletMap.project(
+        L.latLng(startPoint.latitude, startPoint.longitude),
+        DEM_ZOOM
+    );
+    const goalPixel = leafletMap.project(
+        L.latLng(goalPoint.latitude, goalPoint.longitude),
+        DEM_ZOOM
+    );
+
+    // ピクセル座標を補間
+    const currentPixel = L.point(
+        startPixel.x + (goalPixel.x - startPixel.x) * rate,
+        startPixel.y + (goalPixel.y - startPixel.y) * rate
+    );
+
+    // ピクセル座標を緯度・経度に戻す
+    const currentLatLng = leafletMap.unproject(
+        currentPixel,
+        DEM_ZOOM
+    );
+
+    return {
+        latitude: currentLatLng.lat,
+        longitude: currentLatLng.lng
+    };
+}
