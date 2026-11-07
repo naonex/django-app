@@ -1,21 +1,78 @@
 {% extends "base.html" %}
 
 {% block title %}ホーム・サイトマップ{% endblock %}
+{% block page_title %}ホーム・サイトマップ{% endblock %}
 
 {% block content %}
-    <h1>ホーム・サイトマップ</h1>
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
 
-    <h2>アプリケーション</h2>
-    <ul>
-        <li><a href="{% url 'admin:index' %}">Django 管理画面</a></li>
-        {% if PAGE_TITLES.three.index %}
-            <li><a href="{% url 'three:index' %}">{{ PAGE_TITLES.three.index }}</a></li>
-        {% endif %}
-        {% if PAGE_TITLES.three.threeOpenstreetmap %}
-            <li><a href="{% url 'three:threeOpenstreetmap' %}">{{ PAGE_TITLES.three.threeOpenstreetmap }}</a></li>
-        {% endif %}
-        {% if PAGE_TITLES.ffmpeg.transcode %}
-            <li><a href="{% url 'ffmpeg:transcode' %}">{{ PAGE_TITLES.ffmpeg.transcode }}</a></li>
-        {% endif %}
-    </ul>
+    <!-- 自作アプリケーション -->
+    <section>
+        <h2 class="text-lg font-semibold text-gray-700 mb-5">
+            アプリケーション
+        </h2>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+
+            {% if PAGE_TITLES.threeOpenstreetmap %}
+            <a href="{% url 'three:threeOpenstreetmap' %}"
+                class="group block bg-white p-6 rounded-lg border border-gray-200 shadow-sm hover:shadow-md hover:border-blue-300 transition-all">
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="text-base font-semibold text-gray-800 group-hover:text-blue-600 transition-colors">
+                        {{ PAGE_TITLES.threeOpenstreetmap }}
+                    </h3>
+                    <span
+                        class="w-2.5 h-2.5 border-t-2 border-r-2 border-gray-400 rotate-45 group-hover:border-blue-600 transition-colors"></span>
+                </div>
+                <p class="text-sm text-gray-500">
+                    地図表示や3D地形の確認を行います。
+                </p>
+            </a>
+            {% endif %}
+
+            {% if PAGE_TITLES.ffmpegTranscode %}
+            <a href="{% url 'ffmpeg:transcode' %}"
+                class="group block bg-white p-6 rounded-lg border border-gray-200 shadow-sm hover:shadow-md hover:border-blue-300 transition-all">
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="text-base font-semibold text-gray-800 group-hover:text-blue-600 transition-colors">
+                        {{ PAGE_TITLES.ffmpegTranscode }}
+                    </h3>
+                    <span
+                        class="w-2.5 h-2.5 border-t-2 border-r-2 border-gray-400 rotate-45 group-hover:border-blue-600 transition-colors"></span>
+                </div>
+                <p class="text-sm text-gray-500">
+                    動画の圧縮や結合を行います。
+                </p>
+            </a>
+            {% endif %}
+
+        </div>
+    </section>
+
+    <!-- 管理機能 -->
+    <section class="pt-6 border-t border-gray-200">
+        <h2 class="text-sm font-semibold text-gray-500 mb-5">
+            管理機能
+        </h2>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            <a href="{% url 'admin:index' %}"
+                class="group block bg-gray-100 p-6 rounded-lg border border-gray-300 shadow-sm hover:bg-gray-200 hover:border-gray-400 transition-all">
+
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="text-base font-semibold text-gray-600 group-hover:text-gray-800 transition-colors">
+                        Django 管理画面
+                    </h3>
+                    <span
+                        class="w-2.5 h-2.5 border-t-2 border-r-2 border-gray-400 rotate-45 group-hover:border-gray-600 transition-colors"></span>
+                </div>
+
+                <p class="text-sm text-gray-500">
+                    ユーザーやデータなどの管理を行います。
+                </p>
+            </a>
+        </div>
+    </section>
+
+</div>
 {% endblock %}
